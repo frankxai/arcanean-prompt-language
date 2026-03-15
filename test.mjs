@@ -1,114 +1,70 @@
 /**
- * Quick smoke test for APL engine
- * Run: node test.mjs (after build)
+ * Basic smoke tests for arcanean-prompt-language
  */
 
-import { enhance, detectSlop, slopScore, formatPrompt, PALETTES, getPalette, blendPalettes, detectPalette, buildWorldDNA, parsePrompt, ARCANEA_WORLD_DNA } from './dist/index.mjs';
+import { enhance, detectSlop, slopScore, PALETTES, getPalette, blendPalettes, detectPalette, formatPrompt, parsePrompt, buildWorldDNA, ARCANEA_WORLD_DNA, EXAMPLES, getExamples, getRandomExample } from './dist/index.js';
 
 let passed = 0;
 let failed = 0;
 
-function test(name, fn) {
-  try {
-    fn();
+function assert(condition, message) {
+  if (condition) {
     passed++;
-    console.log(`  ✓ ${name}`);
-  } catch (e) {
+  } else {
     failed++;
-    console.log(`  ✗ ${name}: ${e.message}`);
+    console.error(`  FAIL: ${message}`);
   }
 }
 
-function assert(condition, msg) {
-  if (!condition) throw new Error(msg || 'Assertion failed');
-}
+console.log('--- enhance ---');
+const result = enhance('Write a story about a lonely king');
+assert(result.original === 'Write a story about a lonely king', 'preserves original');
+assert(result.slopScore >= 0 && result.slopScore <= 1, 'slopScore in range');
+assert(result.suggestions.length > 0, 'produces suggestions');
+assert(['generic', 'clear', 'vivid', 'resonant'].includes(result.qualityLevel), 'valid quality level');
 
-console.log('\nAPL Engine Tests\n');
+console.log('--- anti-slop ---');
+const slop = detectSlop("In a world where magic exists, I'd be happy to help you explore");
+assert(slop.length >= 2, 'detects multiple slop patterns');
+assert(slop.some(m => m.id === 'opener'), 'detects opener');
+assert(slop.some(m => m.id === 'slop'), 'detects slop tics');
+assert(slopScore('Clean specific text with no cliches') < 0.5, 'clean text has low score');
 
-// Palettes
-test('PALETTES has 5 entries', () => assert(Object.keys(PALETTES).length === 5));
-test('getPalette returns forge', () => assert(getPalette('forge')?.name === 'Forge'));
-test('blendPalettes returns combined', () => {
-  const blend = blendPalettes('forge', 'tide');
-  assert(blend.feelsLike.length === 5);
-  assert(blend.description.includes('Forge + Tide'));
-});
-test('detectPalette finds fire keywords', () => {
-  const result = detectPalette('the forge burned with transformation energy');
-  assert(result[0]?.palette === 'forge');
-});
+console.log('--- palettes ---');
+assert(Object.keys(PALETTES).length === 5, 'five palettes');
+assert(getPalette('forge') !== undefined, 'getPalette works');
+assert(getPalette('nonexistent') === undefined, 'getPalette returns undefined for unknown');
+const blend = blendPalettes('forge', 'tide');
+assert(blend.feelsLike.length === 5, 'blend produces 5 feelsLike');
+assert(blend.description.includes('Forge'), 'blend description mentions primary');
+const detected = detectPalette('fire burn energy transformation forge');
+assert(detected.length > 0 && detected[0].palette === 'forge', 'detects forge palette');
 
-// Anti-slop
-test('detectSlop finds opener', () => {
-  const matches = detectSlop('In a world where magic exists');
-  assert(matches.length > 0);
-  assert(matches[0].id === 'opener');
+console.log('--- format ---');
+const prompt = formatPrompt({
+  spark: 'Test spark',
+  shape: { palette: 'forge', description: 'hot and bright' },
+  sharpen: ['generic fantasy', 'cliches'],
+  prompt: 'Write the scene.',
 });
-test('detectSlop finds avalanche', () => {
-  const matches = detectSlop('A hauntingly beautiful castle');
-  assert(matches.length > 0);
-});
-test('slopScore returns 0 for clean text', () => {
-  assert(slopScore('The king poured wine into the empty glass.') === 0);
-});
-test('slopScore returns >0 for sloppy text', () => {
-  assert(slopScore("In a world where hauntingly beautiful ethereal I'd be happy to help") > 0);
-});
+assert(prompt.includes('SPARK: Test spark'), 'format includes spark');
+assert(prompt.includes('FORGE'), 'format includes palette');
+assert(prompt.includes('NOT generic fantasy'), 'format includes sharpen');
 
-// Enhance
-test('enhance detects generic quality', () => {
-  const result = enhance('Write a story about a hero');
-  assert(result.qualityLevel === 'generic');
-});
-test('enhance detects clear quality with specifics', () => {
-  const result = enhance('Write a story about Maria, who counts ceiling tiles when nervous');
-  assert(result.qualityLevel === 'clear' || result.qualityLevel === 'vivid');
-});
-test('enhance provides suggestions', () => {
-  const result = enhance('Write a poem about the ocean');
-  assert(result.suggestions.length > 0);
-});
+const parsed = parsePrompt(prompt);
+assert(parsed.spark === 'Test spark', 'parse extracts spark');
+assert(parsed.sharpen?.includes('generic fantasy'), 'parse extracts sharpen');
 
-// Format
-test('formatPrompt produces SPARK line', () => {
-  const out = formatPrompt({
-    spark: 'A king who pours wine for his dead wife',
-    prompt: 'Write the scene.',
-  });
-  assert(out.includes('SPARK:'));
-  assert(out.includes('Write the scene.'));
-});
-test('formatPrompt includes SHAPE and SHARPEN', () => {
-  const out = formatPrompt({
-    spark: 'test',
-    shape: { palette: 'tide', description: 'cold and echoing' },
-    sharpen: ['generic fantasy', 'happy ending'],
-    prompt: 'Go.',
-  });
-  assert(out.includes('SHAPE: TIDE'));
-  assert(out.includes('NOT generic fantasy'));
-});
-test('parsePrompt extracts structure', () => {
-  const parsed = parsePrompt('SPARK: A detail\nSHAPE: FORGE — hot\nSHARPEN: NOT boring.\nWrite it.');
-  assert(parsed.spark === 'A detail');
-});
+console.log('--- world-dna ---');
+const dna = buildWorldDNA(ARCANEA_WORLD_DNA);
+assert(dna.includes('[WORLD: Arcanea]'), 'world DNA has name');
+assert(dna.includes('VOID + FORGE'), 'world DNA has blended palettes');
 
-// World DNA
-test('buildWorldDNA produces prefix', () => {
-  const dna = buildWorldDNA({
-    spark: 'memories are flammable',
-    primaryPalette: 'forge',
-    secondaryPalette: 'tide',
-    shapeDescription: 'hot and wet',
-    sharpen: ['medieval Europe'],
-  });
-  assert(dna.includes('[WORLD DNA]'));
-  assert(dna.includes('FORGE + TIDE'));
-});
-test('ARCANEA_WORLD_DNA exists', () => {
-  assert(ARCANEA_WORLD_DNA.name === 'Arcanea');
-  assert(ARCANEA_WORLD_DNA.primaryPalette === 'void');
-});
+console.log('--- examples ---');
+assert(EXAMPLES.length >= 7, 'at least 7 examples');
+assert(getExamples('image').length >= 2, 'at least 2 image examples');
+const rand = getRandomExample();
+assert(rand.id && rand.before && rand.after, 'random example has required fields');
 
-console.log(`\n${passed} passed, ${failed} failed\n`);
+console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

@@ -2,6 +2,7 @@
   "name": "arcanean-prompt-language",
   "version": "1.0.0",
   "description": "SPARK. SHAPE. SHARPEN. — The three-word system that turns generic AI output into work you're proud of.",
+  "license": "MIT",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -13,39 +14,34 @@
     }
   },
   "files": [
-    "dist",
-    "templates",
-    "ARCANEA-PROMPT-LANGUAGE.md"
+    "dist/",
+    "templates/",
+    "ARCANEA-PROMPT-LANGUAGE.md",
+    "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsc",
     "test": "node test.mjs"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frankxai/arcanean-prompt-language"
+  },
+  "homepage": "https://arcanea.ai/apl",
   "keywords": [
     "prompt-engineering",
     "ai",
     "llm",
     "anti-slop",
-    "spark-shape-sharpen",
-    "arcanea",
     "world-building",
     "creative-ai",
-    "prompt-quality",
     "claude",
     "gpt",
     "gemini",
     "midjourney",
-    "suno"
+    "arcanea"
   ],
-  "author": "FrankX <frank@arcanea.ai>",
-  "license": "MIT",
-  "homepage": "https://arcanea.ai/apl",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/frankxai/arcanean-prompt-language"
-  },
   "devDependencies": {
-    "tsup": "^8.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.9.3"
   }
 }
