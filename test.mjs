@@ -51,9 +51,59 @@ assert(prompt.includes('SPARK: Test spark'), 'format includes spark');
 assert(prompt.includes('FORGE'), 'format includes palette');
 assert(prompt.includes('NOT generic fantasy'), 'format includes sharpen');
 
+// Extended formatPrompt testing
+const promptSecondary = formatPrompt({
+  spark: 'Dual spark',
+  shape: { palette: 'forge', secondaryPalette: 'tide', description: 'hot but wet' },
+  prompt: 'Dual prompt.',
+});
+assert(promptSecondary.includes('FORGE + TIDE — hot but wet'), 'format handles secondaryPalette');
+
+const promptMinimal = formatPrompt({
+  spark: 'Minimal spark',
+  prompt: 'Minimal prompt.',
+});
+assert(promptMinimal.includes('SPARK: Minimal spark'), 'format minimal includes spark');
+assert(!promptMinimal.includes('SHAPE:'), 'format minimal omits shape');
+assert(!promptMinimal.includes('SHARPEN:'), 'format minimal omits sharpen');
+
+const promptWorld = formatPrompt({
+  spark: 'World spark',
+  prompt: 'World prompt.',
+  worldDNA: {
+    spark: 'World DNA spark',
+    shape: 'VOID',
+    sharpen: ['world cliches']
+  }
+});
+assert(promptWorld.includes('[WORLD]'), 'format handles worldDNA header');
+assert(promptWorld.includes('WORLD SPARK: World DNA spark'), 'format handles worldDNA spark');
+assert(promptWorld.includes('WORLD SHARPEN: NOT world cliches'), 'format handles worldDNA sharpen');
+
+// Extended parsePrompt testing
 const parsed = parsePrompt(prompt);
 assert(parsed.spark === 'Test spark', 'parse extracts spark');
 assert(parsed.sharpen?.includes('generic fantasy'), 'parse extracts sharpen');
+
+const parseShape = parsePrompt('SPARK: Test\nSHAPE: void — deep space\nTest prompt');
+assert(parseShape.shape?.palette === 'void', 'parse extracts palette');
+assert(parseShape.shape?.description === 'deep space', 'parse extracts shape description');
+
+const multiLineText = `[WORLD]
+WORLD SPARK: world spark
+WORLD SHAPE: void
+WORLD SHARPEN: NOT things
+
+SPARK: The real spark
+SHAPE: forge — hot
+
+This is line 1
+This is line 2`;
+
+const parseMultiline = parsePrompt(multiLineText);
+assert(parseMultiline.spark === 'The real spark', 'parse ignores world text for spark');
+assert(parseMultiline.shape?.palette === 'forge', 'parse extracts palette amidst world text');
+assert(parseMultiline.prompt === 'This is line 1\nThis is line 2', 'parse extracts multiline prompt and ignores WORLD lines');
 
 console.log('--- world-dna ---');
 const dna = buildWorldDNA(ARCANEA_WORLD_DNA);
